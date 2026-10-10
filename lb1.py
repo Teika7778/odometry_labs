@@ -104,24 +104,6 @@ def compare(J, r):
     print()
 
 
-def gauss_newton(X, y, f, df, x0, step, iters=1):
-    """
-    В рамках данной работы будет сделана только одна итерация ГН.
-    """
-    current = x0
-    for _ in range(iters):
-        m, n = X.shape
-        r = np.zeros(m)
-        J = np.zeros((m, x0.shape[0]))
-        for i in range(m):
-            r[i] = f(X[i], current) - y[i]
-            J[i] = df(X[i], current)
-
-        delta = step(J, r)
-        current = current - delta
-    return current
-
-
 # Стандартная матрица
 J = np.array([
     [1, 2],
@@ -198,11 +180,11 @@ def dfunc(value, params):
 
 
 pars = np.array([-5.0, -5.0, 3.0])
-X = np.linspace(-3.0, 3.0, 50).reshape(-1, 1)
+x = np.linspace(-3.0, 3.0, 50)
+X = x.reshape(-1, 1)
 y = generate_y(X, func, pars, 10)  # Большой шум, просто чтобы графики были визуально разделимы
-
-initial = np.array([1.0, 1.0, 1.0])
-est = gauss_newton(X, y, func, dfunc, initial, lstsq_SVD, 1)
+J = np.column_stack([np.ones_like(x), x, x**2])
+est = lstsq_QR(J, y)
 print("Estimated =", est)
 print("True =", pars)
 print("Difference norm =", np.linalg.norm(est - pars))
