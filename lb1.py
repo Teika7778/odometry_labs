@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def reflection(x):
+def reflection(x, eps=1e-8):
     n = x.shape[0]
     sign = 1 if x[0] >= 0 else -1
 
@@ -10,7 +10,7 @@ def reflection(x):
     v = x.copy()
     v[0] -= alpha
 
-    if np.linalg.norm(v) == 0:
+    if np.linalg.norm(v) < eps * max(v):
         return np.eye(n)
     u = v / np.linalg.norm(v)
     H = np.eye(n) - 2 * np.outer(u, u)
@@ -54,14 +54,14 @@ def lstsq_QR(J, r):
     return Delta
 
 
-def lstsq_SVD(J, r):
+def lstsq_SVD(J, r, eps=1e-8):
     U, s, Vt = np.linalg.svd(J, full_matrices=False)
     # U: m x k | k = min(m,n) = n (уравнений должно быть больше)
     # S: k x k
     # c: k x n
     s_inv = np.zeros_like(s)
     for i in range(s.shape[0]):
-        if s[i] > 1e-8:
+        if s[i] > max(s) * eps:
             s_inv[i] = 1.0 / s[i]
 
     return Vt.T @ (s_inv * (U.T @ r))
@@ -73,9 +73,6 @@ def lstsq_inv(J, r):
 
 def compare(J, r):
     np.set_printoptions(precision=10, suppress=False)
-    print("=" * 15)
-    print("J =", J)
-    print("r =", r)
     print("Cond(J) =", np.linalg.cond(J))
     print()
     funcs = {
@@ -95,13 +92,12 @@ def compare(J, r):
                 continue
 
             print(res)
-            print("Error:", np.linalg.norm(J.T @ J @ res - J.T @ r))
+            # Изменил формулу
+            print("Error:", np.linalg.norm(J @ res - r))
 
         except Exception:
             print("Failed")
         print()
-    print("=" * 15)
-    print()
 
 
 # Стандартная матрица
@@ -155,6 +151,39 @@ r = np.array([
 
 compare(J, r)
 
+# Матрица J большая
+# f(x,b) = x1 * b1 + x2 * b2 + ... + xn * bn
+# b = (1 1 ... 1)^T
+
+N = 200
+J = np.random.rand(N, N)
+print(np.linalg.matrix_rank(J))
+
+true = np.ones((N))
+r = J @ true
+
+compare(J, r)
+
+
+# Большой разброс порядков
+# f(x,b) = b1 * exp(exp(exp(x1))) + b2 * x2
+# b = (0.5, 0.25)
+
+def triple_e(p):
+    return np.exp(np.exp(np.exp(p)))
+
+
+J = np.array([
+    [triple_e(0), 0],
+    [triple_e(1), 1],
+    [triple_e(-1), -1],
+    [triple_e(1.5), 1.5]
+]).astype(float)
+print(J)
+true = np.array([0.5, 0.25])
+r = J @ true
+compare(J, r)
+
 rng = np.random.default_rng(seed=42)
 
 
@@ -183,7 +212,7 @@ pars = np.array([-5.0, -5.0, 3.0])
 x = np.linspace(-3.0, 3.0, 50)
 X = x.reshape(-1, 1)
 y = generate_y(X, func, pars, 10)  # Большой шум, просто чтобы графики были визуально разделимы
-J = np.column_stack([np.ones_like(x), x, x**2])
+J = np.column_stack([np.ones_like(x), x, x ** 2])
 est = lstsq_QR(J, y)
 print("Estimated =", est)
 print("True =", pars)
